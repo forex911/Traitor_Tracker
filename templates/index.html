@@ -1035,7 +1035,7 @@
             <div class="nav-section-label">Operations</div>
           </li>
           <li class="nav-item">
-            <a href="javascript:void(0)" class="nav-link active" data-section="watermark" onclick="switchTab('watermark', this)">
+            <a class="nav-link active" data-section="watermark" role="button" tabindex="0">
               <span class="nav-icon-wrap">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
@@ -1049,7 +1049,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a href="javascript:void(0)" class="nav-link" data-section="checker" onclick="switchTab('checker', this)">
+            <a class="nav-link" data-section="checker" role="button" tabindex="0">
               <span class="nav-icon-wrap">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
@@ -1107,7 +1107,7 @@
           <div class="card-body">
             <div class="form-grid">
               <div class="form-section">
-                <form id="watermark-form" action="https://traitor-tracker.onrender.com/upload" method="POST" enctype="multipart/form-data">
+                <form id="watermark-form" action="/upload" method="POST" enctype="multipart/form-data">
                   <div class="form-group">
                     <label for="user_id">User Identifier</label>
                     <input type="text" id="user_id" name="user_id" placeholder="e.g., USER_12345" required>
@@ -1183,7 +1183,7 @@
           <div class="card-body">
             <div class="form-grid">
               <div class="form-section">
-                <form id="checker-form" action="https://traitor-tracker.onrender.com/trace-image" method="POST" enctype="multipart/form-data">
+                <form id="checker-form" action="/trace-image" method="POST" enctype="multipart/form-data">
                   <div class="form-group">
                     <label for="checker_image">Select Image to Analyze</label>
                     <input type="file" id="checker_image" name="image" accept="image/*" required>
@@ -1265,60 +1265,76 @@
     window.ERROR = {{ error | tojson | safe }};
     {% endif %}
 
-    /* ── Global tab switcher (called by inline onclick) ── */
-    function switchTab(section, clickedLink) {
-      var allLinks = document.querySelectorAll('.nav-link');
-      var allSections = document.querySelectorAll('.section');
-      for (var i = 0; i < allLinks.length; i++) { allLinks[i].classList.remove('active'); }
-      for (var i = 0; i < allSections.length; i++) { allSections[i].classList.remove('active'); }
-      clickedLink.classList.add('active');
-      document.getElementById(section + '-section').classList.add('active');
-    }
-
-    /* ── Auto-show results from server ── */
+    // ── BACKEND INTEGRATION ──────────────────────────────────────────────
+    // The Jinja2 block above injects window.RESULT or window.ERROR
+    // when Flask renders this template after a /trace-image POST.
+    // The code below picks those up and displays the correct panel.
+    // ─────────────────────────────────────────────────────────────────────
     if (typeof window.RESULT !== 'undefined' && window.RESULT) {
       document.getElementById('result-user').textContent = window.RESULT.user || '—';
       document.getElementById('result-time').textContent = window.RESULT.time || '—';
       document.getElementById('result-score').textContent = window.RESULT.score || '—';
       document.getElementById('result-success').style.display = 'block';
-      switchTab('checker', document.querySelector('[data-section="checker"]'));
+      // auto-switch to checker tab
+      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+      document.querySelector('[data-section="checker"]').classList.add('active');
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.getElementById('checker-section').classList.add('active');
     }
     if (typeof window.ERROR !== 'undefined' && window.ERROR) {
       document.getElementById('result-error-msg').textContent = window.ERROR;
       document.getElementById('result-error').style.display = 'block';
-      switchTab('checker', document.querySelector('[data-section="checker"]'));
+      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+      document.querySelector('[data-section="checker"]').classList.add('active');
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.getElementById('checker-section').classList.add('active');
     }
 
-    /* ── Image preview handlers ── */
-    document.getElementById('watermark_image').onchange = function(e) {
-      var file = e.target.files[0]; if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function(ev) {
-        var img = document.getElementById('watermark-preview-image');
-        var container = document.getElementById('watermark-preview-container');
-        img.src = ev.target.result; img.classList.add('visible');
-        container.classList.add('has-image');
-        var ph = container.querySelector('.preview-placeholder'); if (ph) ph.style.display = 'none';
-        var dot = document.getElementById('wm-dot');
-        if (dot) { dot.style.background = '#c81e32'; dot.style.boxShadow = '0 0 8px rgba(200,30,50,0.7)'; }
-      };
-      reader.readAsDataURL(file);
-    };
 
-    document.getElementById('checker_image').onchange = function(e) {
-      var file = e.target.files[0]; if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function(ev) {
-        var img = document.getElementById('checker-preview-image');
-        var container = document.getElementById('checker-preview-container');
+    const navLinks = document.querySelectorAll('.nav-link');
+    const sections = document.querySelectorAll('.section');
+
+    navLinks.forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        navLinks.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+        sections.forEach(s => s.classList.remove('active'));
+        document.getElementById(link.getAttribute('data-section') + '-section').classList.add('active');
+      });
+    });
+
+    // Watermark preview
+    document.getElementById('watermark_image').addEventListener('change', function (e) {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = document.getElementById('watermark-preview-image');
+        const container = document.getElementById('watermark-preview-container');
         img.src = ev.target.result; img.classList.add('visible');
         container.classList.add('has-image');
-        var ph = container.querySelector('.preview-placeholder'); if (ph) ph.style.display = 'none';
-        var dot = document.getElementById('ch-dot');
+        const ph = container.querySelector('.preview-placeholder'); if (ph) ph.style.display = 'none';
+        const dot = document.getElementById('wm-dot');
         if (dot) { dot.style.background = '#c81e32'; dot.style.boxShadow = '0 0 8px rgba(200,30,50,0.7)'; }
       };
       reader.readAsDataURL(file);
-    };
+    });
+
+    // Checker preview
+    document.getElementById('checker_image').addEventListener('change', function (e) {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = document.getElementById('checker-preview-image');
+        const container = document.getElementById('checker-preview-container');
+        img.src = ev.target.result; img.classList.add('visible');
+        container.classList.add('has-image');
+        const ph = container.querySelector('.preview-placeholder'); if (ph) ph.style.display = 'none';
+        const dot = document.getElementById('ch-dot');
+        if (dot) { dot.style.background = '#c81e32'; dot.style.boxShadow = '0 0 8px rgba(200,30,50,0.7)'; }
+      };
+      reader.readAsDataURL(file);
+    });
   </script>
 </body>
 
