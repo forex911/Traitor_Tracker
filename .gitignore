@@ -31,7 +31,6 @@ uploads/
 # =========================
 # Database / Secrets
 # =========================
-security/keys.py
 database/*.env
 
 # =========================
