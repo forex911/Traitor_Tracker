@@ -5,13 +5,16 @@ import hashlib
 import cv2
 from datetime import datetime
 
-from database.db import get_db_connection
+from database.db import get_db_connection, init_db
 from core.embed import embed_watermark
 from core.extract import extract_watermark
 from attacks.dispatcher import apply_attack
 from security.keys import get_secret_key
 
 app = Flask(__name__)
+
+# Initialize database tables if they do not exist
+init_db()
 
 if os.environ.get("VERCEL"):
     BASE_DIR = os.path.join(tempfile.gettempdir(), "traitor_tracer_samples")

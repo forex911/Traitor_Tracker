@@ -16,3 +16,24 @@ def get_db_connection():
         port=os.getenv("DB_PORT"),
         sslmode="require"
     )
+
+def init_db():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS watermark_records (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(255),
+                content_hash TEXT,
+                watermark_key VARCHAR(32),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Database initialized successfully.")
+    except Exception as e:
+        print(f"Error initializing DB: {e}")
+
