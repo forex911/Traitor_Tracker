@@ -1035,7 +1035,7 @@
             <div class="nav-section-label">Operations</div>
           </li>
           <li class="nav-item">
-            <a class="nav-link active" data-section="watermark">
+            <a href="#" class="nav-link active" data-section="watermark">
               <span class="nav-icon-wrap">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
@@ -1049,7 +1049,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" data-section="checker">
+            <a href="#" class="nav-link" data-section="checker">
               <span class="nav-icon-wrap">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
@@ -1265,78 +1265,74 @@
     window.ERROR = {{ error | tojson | safe }};
     {% endif %}
 
-    // ── BACKEND INTEGRATION ──────────────────────────────────────────────
-    // When your Flask/Jinja2 server renders this page after a /trace-image POST,
-    // inject a small <script> block BEFORE this file that sets window.RESULT or
-    // window.ERROR, e.g.:
-    //   window.RESULT = { user: "USER_123", time: "2025-01-01 12:00", score: "98.2%" }
-    //   window.ERROR  = "No watermark found in image."
-    // The code below will pick those up and display the correct panel.
-    // ─────────────────────────────────────────────────────────────────────
-    if (typeof window.RESULT !== 'undefined' && window.RESULT) {
-      document.getElementById('result-user').textContent = window.RESULT.user || '—';
-      document.getElementById('result-time').textContent = window.RESULT.time || '—';
-      document.getElementById('result-score').textContent = window.RESULT.score || '—';
-      document.getElementById('result-success').style.display = 'block';
-      // auto-switch to checker tab
-      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-      document.querySelector('[data-section="checker"]').classList.add('active');
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.getElementById('checker-section').classList.add('active');
-    }
-    if (typeof window.ERROR !== 'undefined' && window.ERROR) {
-      document.getElementById('result-error-msg').textContent = window.ERROR;
-      document.getElementById('result-error').style.display = 'block';
-      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-      document.querySelector('[data-section="checker"]').classList.add('active');
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.getElementById('checker-section').classList.add('active');
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+      // ── Show results if server passed them ──
+      if (typeof window.RESULT !== 'undefined' && window.RESULT) {
+        document.getElementById('result-user').textContent = window.RESULT.user || '—';
+        document.getElementById('result-time').textContent = window.RESULT.time || '—';
+        document.getElementById('result-score').textContent = window.RESULT.score || '—';
+        document.getElementById('result-success').style.display = 'block';
+        document.querySelectorAll('.nav-link').forEach(function(l) { l.classList.remove('active'); });
+        document.querySelector('[data-section="checker"]').classList.add('active');
+        document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+        document.getElementById('checker-section').classList.add('active');
+      }
+      if (typeof window.ERROR !== 'undefined' && window.ERROR) {
+        document.getElementById('result-error-msg').textContent = window.ERROR;
+        document.getElementById('result-error').style.display = 'block';
+        document.querySelectorAll('.nav-link').forEach(function(l) { l.classList.remove('active'); });
+        document.querySelector('[data-section="checker"]').classList.add('active');
+        document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+        document.getElementById('checker-section').classList.add('active');
+      }
 
+      // ── Navigation click handlers ──
+      var navLinks = document.querySelectorAll('.nav-link');
+      var sections = document.querySelectorAll('.section');
 
-    const navLinks = document.querySelectorAll('.nav-link');
-    const sections = document.querySelectorAll('.section');
-
-    navLinks.forEach(link => {
-      link.addEventListener('click', e => {
-        e.preventDefault();
-        navLinks.forEach(l => l.classList.remove('active'));
-        link.classList.add('active');
-        sections.forEach(s => s.classList.remove('active'));
-        document.getElementById(link.getAttribute('data-section') + '-section').classList.add('active');
+      navLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          navLinks.forEach(function(l) { l.classList.remove('active'); });
+          link.classList.add('active');
+          sections.forEach(function(s) { s.classList.remove('active'); });
+          var target = link.getAttribute('data-section') + '-section';
+          document.getElementById(target).classList.add('active');
+        });
       });
-    });
 
-    // Watermark preview
-    document.getElementById('watermark_image').addEventListener('change', function (e) {
-      const file = e.target.files[0]; if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const img = document.getElementById('watermark-preview-image');
-        const container = document.getElementById('watermark-preview-container');
-        img.src = ev.target.result; img.classList.add('visible');
-        container.classList.add('has-image');
-        const ph = container.querySelector('.preview-placeholder'); if (ph) ph.style.display = 'none';
-        const dot = document.getElementById('wm-dot');
-        if (dot) { dot.style.background = '#c81e32'; dot.style.boxShadow = '0 0 8px rgba(200,30,50,0.7)'; }
-      };
-      reader.readAsDataURL(file);
-    });
+      // ── Watermark preview ──
+      document.getElementById('watermark_image').addEventListener('change', function(e) {
+        var file = e.target.files[0]; if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          var img = document.getElementById('watermark-preview-image');
+          var container = document.getElementById('watermark-preview-container');
+          img.src = ev.target.result; img.classList.add('visible');
+          container.classList.add('has-image');
+          var ph = container.querySelector('.preview-placeholder'); if (ph) ph.style.display = 'none';
+          var dot = document.getElementById('wm-dot');
+          if (dot) { dot.style.background = '#c81e32'; dot.style.boxShadow = '0 0 8px rgba(200,30,50,0.7)'; }
+        };
+        reader.readAsDataURL(file);
+      });
 
-    // Checker preview
-    document.getElementById('checker_image').addEventListener('change', function (e) {
-      const file = e.target.files[0]; if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const img = document.getElementById('checker-preview-image');
-        const container = document.getElementById('checker-preview-container');
-        img.src = ev.target.result; img.classList.add('visible');
-        container.classList.add('has-image');
-        const ph = container.querySelector('.preview-placeholder'); if (ph) ph.style.display = 'none';
-        const dot = document.getElementById('ch-dot');
-        if (dot) { dot.style.background = '#c81e32'; dot.style.boxShadow = '0 0 8px rgba(200,30,50,0.7)'; }
-      };
-      reader.readAsDataURL(file);
+      // ── Checker preview ──
+      document.getElementById('checker_image').addEventListener('change', function(e) {
+        var file = e.target.files[0]; if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          var img = document.getElementById('checker-preview-image');
+          var container = document.getElementById('checker-preview-container');
+          img.src = ev.target.result; img.classList.add('visible');
+          container.classList.add('has-image');
+          var ph = container.querySelector('.preview-placeholder'); if (ph) ph.style.display = 'none';
+          var dot = document.getElementById('ch-dot');
+          if (dot) { dot.style.background = '#c81e32'; dot.style.boxShadow = '0 0 8px rgba(200,30,50,0.7)'; }
+        };
+        reader.readAsDataURL(file);
+      });
     });
   </script>
 </body>
