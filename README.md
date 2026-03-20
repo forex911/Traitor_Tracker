@@ -1,5 +1,5 @@
 <h1 align="center">
-  Traitor-Tracer 🕵️‍♂️
+  Traitor-Tracker 🕵️‍♂️
 </h1>
 
 <p align="center">
@@ -17,9 +17,9 @@
 
 ## 📖 Overview
 
-**Traitor-Tracer** is a robust, web-based security system that embeds invisible watermarks into digital images, enabling seamless source tracking and traitor identification. Built with Python and Flask, the system not only embeds cryptographic identifiers but also evaluates the watermark's robustness under various real-world attacks.
+**Traitor-tracker** is a robust, web-based security system that embeds invisible watermarks into digital images, enabling seamless source tracking and traitor identification. Built with Python and Flask, the system not only embeds cryptographic identifiers but also evaluates the watermark's robustness under various real-world attacks.
 
-Whether an image is cropped, resized, compressed, or injected with noise, Traitor-Tracer attempts to extract the embedded identity to trace the origin of unauthorized leaks.
+Whether an image is cropped, resized, compressed, or injected with noise, Traitor-tracker attempts to extract the embedded identity to trace the origin of unauthorized leaks.
 
 ---
 
@@ -115,7 +115,7 @@ python app.py
 
 ## ☁️ Deployment
 
-**Traitor-Tracer** is configured for instant serverless/PaaS deployment. 
+**Traitor-tracker** is configured for instant serverless/PaaS deployment. 
 
 ### Deploy to Vercel
 1. Import the repository into your Vercel dashboard.
