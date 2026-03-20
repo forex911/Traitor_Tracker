@@ -1,6 +1,7 @@
 # Core numerical & image processing
 numpy
-opencv-python
+opencv-python-headless
+gunicorn
 
 # Signal / frequency domain processing
 scipy

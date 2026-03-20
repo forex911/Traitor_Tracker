@@ -1,5 +1,6 @@
 from flask import Flask, request, render_template, send_file
 import os
+import tempfile
 import hashlib
 import cv2
 from datetime import datetime
@@ -11,6 +12,11 @@ from attacks.dispatcher import apply_attack
 from security.keys import get_secret_key
 
 app = Flask(__name__)
+
+if os.environ.get("VERCEL"):
+    BASE_DIR = os.path.join(tempfile.gettempdir(), "traitor_tracer_samples")
+else:
+    BASE_DIR = os.environ.get("STORAGE_DIR", "samples")
 
 # --------------------------------------------------
 # CONSTANTS
@@ -60,8 +66,8 @@ def upload_image():
 
     folder = unique_folder(user_id)
 
-    original_dir = os.path.join("samples", "original", folder)
-    watermarked_dir = os.path.join("samples", "watermarked", folder)
+    original_dir = os.path.join(BASE_DIR, "original", folder)
+    watermarked_dir = os.path.join(BASE_DIR, "watermarked", folder)
     os.makedirs(original_dir, exist_ok=True)
     os.makedirs(watermarked_dir, exist_ok=True)
 
@@ -115,7 +121,7 @@ def trace_image():
         )
 
     folder = unique_folder("CHECK")
-    attacked_dir = os.path.join("samples", "attacked", folder)
+    attacked_dir = os.path.join(BASE_DIR, "attacked", folder)
     os.makedirs(attacked_dir, exist_ok=True)
 
     image_path = os.path.join(attacked_dir, image.filename)
@@ -178,7 +184,7 @@ def attack_run():
         )
 
     folder = unique_folder("ATTACK")
-    base_dir = os.path.join("samples", "trace", folder)
+    base_dir = os.path.join(BASE_DIR, "trace", folder)
     os.makedirs(base_dir, exist_ok=True)
 
     original_path = os.path.join(base_dir, image.filename)
