@@ -35,10 +35,12 @@ def extract_watermark(image_path, length):
     # 5️⃣ Error correction
     bits = decode_bits(bits)
 
-    # 6️⃣ Bits → text
+    # 6️⃣ Bits → text (filter non-printable characters)
     chars = []
     for i in range(0, len(bits), 8):
         byte = bits[i:i + 8]
-        chars.append(chr(int("".join(map(str, byte)), 2)))
+        code = int("".join(map(str, byte)), 2)
+        if 32 <= code < 127:  # printable ASCII only
+            chars.append(chr(code))
 
     return "".join(chars)

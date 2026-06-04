@@ -35,6 +35,7 @@ def run(image_path: str) -> str:
     # Choose noise type (you can parameterize later)
     attacked = gaussian_noise(image)
 
-    out_path = image_path.replace(".", "_noise.")
+    base, ext = os.path.splitext(image_path)
+    out_path = f"{base}_noise{ext}"
     cv2.imwrite(out_path, attacked)
     return out_path

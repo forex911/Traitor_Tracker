@@ -1,11 +1,12 @@
 import os
+import logging
 import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
-print("DB_HOST =", os.getenv("DB_HOST"))
-print("DB_USER =", os.getenv("DB_USER"))
-print("DB_PORT =", os.getenv("DB_PORT"))
+
+logger = logging.getLogger("traitor-tracer")
+
 
 def get_db_connection():
     return psycopg2.connect(
@@ -16,6 +17,7 @@ def get_db_connection():
         port=os.getenv("DB_PORT"),
         sslmode="require"
     )
+
 
 def init_db():
     try:
@@ -33,7 +35,7 @@ def init_db():
         conn.commit()
         cur.close()
         conn.close()
-        print("Database initialized successfully.")
+        logger.info("Database initialized successfully.")
     except Exception as e:
-        print(f"Error initializing DB: {e}")
+        logger.warning(f"Database not available, running without DB: {e}")
 

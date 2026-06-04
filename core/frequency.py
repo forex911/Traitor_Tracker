@@ -3,16 +3,18 @@ import numpy as np
 import pywt
 from scipy.fftpack import dct, idct
 
+from config.settings import DWT_WAVELET
+
 
 def apply_dwt(image):
     """Apply single-level DWT"""
-    coeffs = pywt.dwt2(image, 'haar')
+    coeffs = pywt.dwt2(image, DWT_WAVELET)
     return coeffs
 
 
 def inverse_dwt(coeffs):
     """Inverse DWT"""
-    return pywt.idwt2(coeffs, 'haar')
+    return pywt.idwt2(coeffs, DWT_WAVELET)
 
 
 def apply_dct(block):

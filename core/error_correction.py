@@ -1,4 +1,7 @@
-def encode_bits(bits, repeat=3):
+from config.settings import ECC_REPEAT
+
+
+def encode_bits(bits, repeat=ECC_REPEAT):
     """Repeat bits for robustness"""
     encoded = []
     for bit in bits:
@@ -6,7 +9,7 @@ def encode_bits(bits, repeat=3):
     return encoded
 
 
-def decode_bits(bits, repeat=3):
+def decode_bits(bits, repeat=ECC_REPEAT):
     """Majority voting"""
     decoded = []
     for i in range(0, len(bits), repeat):

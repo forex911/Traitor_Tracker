@@ -2,14 +2,18 @@ from flask import Flask, request, render_template, send_file
 import os
 import tempfile
 import hashlib
+import shutil
+import time
 import cv2
 from datetime import datetime
+from werkzeug.utils import secure_filename
 
 from database.db import get_db_connection, init_db
 from core.embed import embed_watermark
 from core.extract import extract_watermark
 from attacks.dispatcher import apply_attack
 from security.keys import get_secret_key
+from config.settings import ALLOWED_FORMATS
 
 app = Flask(__name__)
 
@@ -26,6 +30,7 @@ else:
 # --------------------------------------------------
 WATERMARK_LEN = 32
 SIMILARITY_THRESHOLD = 0.75   # relaxed for attacked images
+MAX_TEMP_AGE_SECONDS = 3600   # cleanup files older than 1 hour
 
 
 # --------------------------------------------------
@@ -39,6 +44,28 @@ def similarity(a: str, b: str) -> float:
 
 def unique_folder(prefix: str) -> str:
     return f"{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+
+def allowed_file(filename: str) -> bool:
+    """Check if the file extension is in the allowed list."""
+    if '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in ALLOWED_FORMATS
+
+
+def cleanup_old_files(directory: str, max_age: int = MAX_TEMP_AGE_SECONDS):
+    """Remove subdirectories older than max_age seconds."""
+    if not os.path.isdir(directory):
+        return
+    now = time.time()
+    for entry in os.scandir(directory):
+        if entry.is_dir():
+            try:
+                if now - entry.stat().st_mtime > max_age:
+                    shutil.rmtree(entry.path, ignore_errors=True)
+            except OSError:
+                pass
 
 
 # --------------------------------------------------
@@ -67,6 +94,15 @@ def upload_image():
             error="User ID and image are required"
         )
 
+    # Validate filename and file type
+    filename = secure_filename(image.filename)
+    if not filename or not allowed_file(filename):
+        return render_template(
+            "index.html",
+            active_section="watermark",
+            error=f"Invalid file type. Allowed: {', '.join(ALLOWED_FORMATS)}"
+        )
+
     folder = unique_folder(user_id)
 
     original_dir = os.path.join(BASE_DIR, "original", folder)
@@ -74,8 +110,8 @@ def upload_image():
     os.makedirs(original_dir, exist_ok=True)
     os.makedirs(watermarked_dir, exist_ok=True)
 
-    input_path = os.path.join(original_dir, image.filename)
-    output_path = os.path.join(watermarked_dir, image.filename)
+    input_path = os.path.join(original_dir, filename)
+    output_path = os.path.join(watermarked_dir, filename)
 
     image.save(input_path)
 
@@ -89,22 +125,26 @@ def upload_image():
     watermarked_img = embed_watermark(input_path, watermark_text)
     cv2.imwrite(output_path, watermarked_img)
 
-    # Required DB field
-    content_hash = hashlib.sha256(image.filename.encode()).hexdigest()
+    # Hash actual file bytes for content verification
+    with open(input_path, "rb") as f:
+        content_hash = hashlib.sha256(f.read()).hexdigest()
 
     # Store record
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT INTO watermark_records (user_id, content_hash, watermark_key)
-        VALUES (%s, %s, %s)
-        """,
-        (user_id, content_hash, watermark_text)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO watermark_records (user_id, content_hash, watermark_key)
+            VALUES (%s, %s, %s)
+            """,
+            (user_id, content_hash, watermark_text)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception:
+        pass  # DB may be unavailable; watermarked image is still returned
 
     return send_file(output_path, as_attachment=True)
 
@@ -123,11 +163,20 @@ def trace_image():
             error="Please upload an image"
         )
 
+    # Validate filename
+    filename = secure_filename(image.filename)
+    if not filename or not allowed_file(filename):
+        return render_template(
+            "index.html",
+            active_section="checker",
+            error=f"Invalid file type. Allowed: {', '.join(ALLOWED_FORMATS)}"
+        )
+
     folder = unique_folder("CHECK")
     attacked_dir = os.path.join(BASE_DIR, "attacked", folder)
     os.makedirs(attacked_dir, exist_ok=True)
 
-    image_path = os.path.join(attacked_dir, image.filename)
+    image_path = os.path.join(attacked_dir, filename)
     image.save(image_path)
 
     try:
@@ -135,14 +184,17 @@ def trace_image():
     except Exception:
         extracted = ""
 
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT user_id, watermark_key, created_at FROM watermark_records"
-    )
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT user_id, watermark_key, created_at FROM watermark_records"
+        )
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception:
+        rows = []
 
     for user_id, stored_key, created_at in rows:
         score = similarity(extracted, stored_key)
@@ -169,6 +221,9 @@ def trace_image():
 # --------------------------------------------------
 @app.route("/attack", methods=["GET"])
 def attack_dashboard():
+    # Cleanup old temp files on dashboard load
+    for subdir in ("attacked", "trace"):
+        cleanup_old_files(os.path.join(BASE_DIR, subdir))
     return render_template("attack.html")
 
 
@@ -186,20 +241,31 @@ def attack_run():
             error="Image and attack type are required"
         )
 
+    # Validate filename
+    filename = secure_filename(image.filename)
+    if not filename or not allowed_file(filename):
+        return render_template(
+            "attack.html",
+            error=f"Invalid file type. Allowed: {', '.join(ALLOWED_FORMATS)}"
+        )
+
     folder = unique_folder("ATTACK")
     base_dir = os.path.join(BASE_DIR, "trace", folder)
     os.makedirs(base_dir, exist_ok=True)
 
-    original_path = os.path.join(base_dir, image.filename)
+    original_path = os.path.join(base_dir, filename)
     image.save(original_path)
 
     # Fetch all watermark keys
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT watermark_key FROM watermark_records")
-    keys = [row[0] for row in cur.fetchall()]
-    cur.close()
-    conn.close()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT watermark_key FROM watermark_records")
+        keys = [row[0] for row in cur.fetchall()]
+        cur.close()
+        conn.close()
+    except Exception:
+        keys = []
 
     attack_result = apply_attack(original_path, attack_type)
 
@@ -262,4 +328,4 @@ def favicon():
 # RUN APP
 # --------------------------------------------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True)

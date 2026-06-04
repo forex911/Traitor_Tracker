@@ -1,7 +1,9 @@
 import numpy as np
 
+from config.settings import BLOCK_SIZE
 
-def split_blocks(image, block_size=8):
+
+def split_blocks(image, block_size=BLOCK_SIZE):
     h, w = image.shape
     blocks = []
     for y in range(0, h - block_size + 1, block_size):
@@ -10,7 +12,8 @@ def split_blocks(image, block_size=8):
     return blocks
 
 
-def merge_blocks(image, blocks, block_size=8):
+def merge_blocks(image, blocks, block_size=BLOCK_SIZE):
+    result = image.copy()
     for y, x, block in blocks:
-        image[y:y+block_size, x:x+block_size] = block
-    return image
+        result[y:y+block_size, x:x+block_size] = block
+    return result
